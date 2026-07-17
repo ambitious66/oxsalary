@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>牛马薪水管理器</title>
+
+<!-- PWA iOS -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="牛马薪水罐">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%231a1a2e'/><text x='50' y='68' font-size='60' text-anchor='middle'>🐷</text></svg>">
+<meta name="theme-color" content="#0d1117">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:"PingFang SC","Microsoft YaHei",sans-serif;
+  background:#0d1117;color:#e0e0e0;
+  display:flex;justify-content:center;align-items:center;
+  min-height:100vh;user-select:none;-webkit-user-select:none;
+}
+.app{width:100%;max-width:420px;padding:24px 20px 40px;display:flex;flex-direction:column;align-items:center;gap:14px}
+
+/* ---- Gear button ---- */
+.gear-btn{
+  position:fixed;top:16px;right:16px;
+  width:36px;height:36px;
+  background:rgba(255,255,255,.06);border:none;border-radius:50%;
+  color:#666;font-size:18px;cursor:pointer;z-index:100;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s
+}
+.gear-btn:hover{color:#FFD93D;background:rgba(255,255,255,.12)}
+
+/* ---- Settings overlay ---- */
+.settings-overlay{
+  display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,.88);z-index:200;
+  justify-content:center;align-items:center;flex-direction:column;gap:14px
+}
+.settings-overlay.show{display:flex}
+.settings-panel{
+  background:#161b22;border:1px solid #30363d;border-radius:16px;
+  padding:28px 24px;width:300px;display:flex;flex-direction:column;gap:14px
+}
+.settings-panel h3{font-size:14px;color:#FFD93D;letter-spacing:2px;text-align:center}
+.settings-row{display:flex;align-items:center;gap:8px}
+.settings-row label{font-size:12px;color:#888;white-space:nowrap;min-width:40px;text-align:right}
+.settings-row input{
+  flex:1;padding:8px 12px;background:#0d1117;border:1px solid #30363d;
+  border-radius:8px;color:#e0e0e0;font-size:14px;font-family:inherit;outline:none;text-align:center
+}
+.settings-row input:focus{border-color:#FFD93D}
+.settings-row .sep{color:#555;font-size:12px}
+.settings-row .unit-label{font-size:11px;color:#555;white-space:nowrap;min-width:36px}
+.btn-close{
+  padding:10px 0;width:100%;background:#30363d;border:none;border-radius:10px;
+  color:#ccc;font-size:14px;font-family:inherit;cursor:pointer;letter-spacing:1px;font-weight:600
+}
+.btn-close:hover{background:#FFD93D;color:#0d1117}
+
+/* ---- Title ---- */
+.title{font-size:20px;font-weight:700;letter-spacing:2px;color:#FFD93D}
+.subtitle{font-size:12px;color:#666;letter-spacing:1px;text-align:center}
+
+/* ---- Piggy: clean SVG ---- */
+.piggy-container{width:240px;height:200px;margin:0 auto}
+.piggy-svg{width:100%;height:100%}
+
+/* Coin drop */
+.coin-drop{
+  position:absolute;width:14px;height:14px;
+  background:radial-gradient(circle at 35% 35%,#FFE082,#FFC107);
+  border-radius:50%;border:1.5px solid #c88a00;
+  z-index:20;animation:dropCoin 1.5s ease-in forwards;
+  box-shadow:0 2px 4px rgba(0,0,0,.3)
+}
+@keyframes dropCoin{
+  0%{opacity:0;transform:translateY(0) rotate(0deg) scale(.3)}
+  10%{opacity:1}
+  35%{opacity:1;transform:translateY(15px) rotate(120deg) scale(.65)}
+  60%{opacity:1;transform:translateY(35px) rotate(220deg) scale(.4)}
+  100%{opacity:0;transform:translateY(60px) rotate(360deg) scale(.1)}
+}
+
+/* ---- Today earning ---- */
+.today-earning{text-align:center}
+.today-label{font-size:12px;color:#666;letter-spacing:1px;margin-bottom:2px}
+.today-amount{font-size:48px;font-weight:300;color:#FFD93D;letter-spacing:3px;font-family:"SF Mono","Menlo","Courier New",monospace}
+.today-amount .unit{font-size:16px;color:#FFD93D;font-weight:400}
+
+/* ---- Stats ---- */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+.stat-card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:14px 16px;text-align:center}
+.stat-label{font-size:11px;color:#666;letter-spacing:1px;margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:700;color:#e0e0e0;letter-spacing:1px}
+.stat-value.sm{font-size:16px}
+
+/* ---- Progress ---- */
+.progress-wrap{width:100%;height:4px;background:#161b22;border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#FF6B6B,#FFD93D);border-radius:2px;transition:width 10s linear}
+.progress-text{font-size:12px;color:#666;text-align:center;margin-top:4px;letter-spacing:1px}
+.progress-text span{color:#FFD93D;font-weight:600}
+
+/* ---- Quote ---- */
+.quote{font-size:12px;color:#444;text-align:center;letter-spacing:1px;font-style:italic}
+.quote em{color:#FFD93D;font-style:normal}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="title">🐷 牛马薪水管理器</div>
+  <div class="subtitle">每过一分钟，金币就多一枚</div>
+
+  <!-- Piggy: clean SVG illustration -->
+  <div class="piggy-container" id="piggyContainer">
+    <svg class="piggy-svg" viewBox="0 0 240 200" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="bodyGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#FFE8A0"/>
+          <stop offset="40%" stop-color="#F5C050"/>
+          <stop offset="100%" stop-color="#C88820"/>
+        </linearGradient>
+        <linearGradient id="coinGrad" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0%" stop-color="#B87800"/>
+          <stop offset="20%" stop-color="#E6A800"/>
+          <stop offset="50%" stop-color="#FFD54F"/>
+          <stop offset="80%" stop-color="#F5B800"/>
+          <stop offset="100%" stop-color="#FFD93D"/>
+        </linearGradient>
+        <clipPath id="bodyClip">
+          <ellipse cx="120" cy="120" rx="85" ry="55"/>
+        </clipPath>
+      </defs>
+      <!-- Shadow -->
+      <ellipse cx="120" cy="188" rx="75" ry="6" fill="rgba(0,0,0,0.1)"/>
+      <!-- Tail -->
+      <path d="M38,105 C28,90 15,80 20,68 C24,58 35,62 30,72 C27,78 36,88 40,98"
+            fill="none" stroke="#C88820" stroke-width="3" stroke-linecap="round"/>
+      <!-- Back legs -->
+      <rect x="65" y="165" width="16" height="20" rx="7" fill="#D4A030"/>
+      <rect x="90" y="165" width="16" height="20" rx="7" fill="#D4A030"/>
+      <!-- Body -->
+      <ellipse cx="120" cy="120" rx="85" ry="55" fill="url(#bodyGrad)"/>
+      <!-- Coins fill -->
+      <rect x="35" y="180" width="170" height="120" fill="url(#coinGrad)" clip-path="url(#bodyClip)" id="pigFillSvg"/>
+      <!-- Coin layers -->
+      <g clip-path="url(#bodyClip)" opacity="0.15">
+        <line x1="35" y1="160" x2="205" y2="160" stroke="#8B6000" stroke-width="1"/>
+        <line x1="35" y1="150" x2="205" y2="150" stroke="#8B6000" stroke-width="1"/>
+        <line x1="35" y1="140" x2="205" y2="140" stroke="#8B6000" stroke-width="1"/>
+        <line x1="35" y1="130" x2="205" y2="130" stroke="#8B6000" stroke-width="1"/>
+        <line x1="35" y1="120" x2="205" y2="120" stroke="#8B6000" stroke-width="1"/>
+        <line x1="35" y1="110" x2="205" y2="110" stroke="#8B6000" stroke-width="1"/>
+        <line x1="35" y1="100" x2="205" y2="100" stroke="#8B6000" stroke-width="1"/>
+        <line x1="35" y1="90" x2="205" y2="90" stroke="#8B6000" stroke-width="1"/>
+      </g>
+      <!-- Ear -->
+      <ellipse cx="160" cy="68" rx="12" ry="16" fill="#F0C050" stroke="#C88820" stroke-width="1.5"
+               transform="rotate(15,160,68)"/>
+      <ellipse cx="160" cy="70" rx="6" ry="10" fill="#D8A830" transform="rotate(15,160,70)"/>
+      <!-- Slot -->
+      <rect x="104" y="64" width="22" height="6" rx="3" fill="#5A3C10"/>
+      <rect x="107" y="65" width="16" height="2" rx="1" fill="#2A1800"/>
+      <!-- Eye -->
+      <circle cx="170" cy="95" r="7" fill="#1A0A00"/>
+      <circle cx="172" cy="93" r="3" fill="#FFF"/>
+      <!-- Snout -->
+      <ellipse cx="198" cy="120" rx="15" ry="12" fill="#FFE8C8" stroke="#C88820" stroke-width="1.5"/>
+      <circle cx="194" cy="118" r="3" fill="#8B6018"/>
+      <circle cx="202" cy="118" r="3" fill="#8B6018"/>
+      <!-- Front legs -->
+      <rect x="140" y="165" width="16" height="20" rx="7" fill="#D4A030"/>
+      <rect x="165" y="165" width="16" height="20" rx="7" fill="#D4A030"/>
+    </svg>
+  </div>
+
+  <!-- Today earning -->
+  <div class="today-earning">
+    <div class="today-label">今日已赚</div>
+    <div class="today-amount" id="todayAmount">¥0.<span class="unit">00</span></div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">时薪</div>
+      <div class="stat-value sm" id="hourRate">¥0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">每分钟赚</div>
+      <div class="stat-value sm" id="minRate">¥0.00</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">距离下班</div>
+      <div class="stat-value sm" id="timeLeft">--:--:--</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">本月已攒</div>
+      <div class="stat-value sm" id="monthTotal">¥0</div>
+    </div>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="progress-wrap">
+    <div class="progress-fill" id="progressBar" style="width:0%;"></div>
+  </div>
+  <div class="progress-text" id="progressText">加载中...</div>
+
+  <div class="quote">再摸一分钟鱼，又有 <em id="perMinDisplay">0.00</em> 元到账</div>
+</div>
+
+<!-- Gear button -->
+<button class="gear-btn" onclick="toggleSettings()" title="设置">⚙</button>
+
+<!-- Settings overlay -->
+<div class="settings-overlay" id="settingsOverlay">
+  <div class="settings-panel">
+    <h3>⚙ 设置</h3>
+    <div class="settings-row">
+      <label>月薪</label>
+      <input type="number" id="salaryInput" placeholder="15000">
+      <span class="unit-label">元/月</span>
+    </div>
+    <div class="settings-row">
+      <label>上班</label>
+      <input type="number" id="startHour" placeholder="9" min="0" max="23" style="width:50px">
+      <span class="sep">:</span>
+      <input type="number" id="startMin" placeholder="00" min="0" max="59" style="width:50px">
+      <span class="sep">—</span>
+      <label style="min-width:24px">下班</label>
+      <input type="number" id="endHour" placeholder="18" min="0" max="23" style="width:50px">
+      <span class="sep">:</span>
+      <input type="number" id="endMin" placeholder="00" min="0" max="59" style="width:50px">
+    </div>
+    <button class="btn-close" onclick="saveAndClose()">完成</button>
+  </div>
+</div>
+
+<script>
+const STORAGE = 'salary_manager_settings';
+
+let cfg = { salary: 15000, startH: 9, startM: 0, endH: 18, endM: 0 };
+
+// ---- Load / Save ----
+function loadCfg() {
+  try { const s = JSON.parse(localStorage.getItem(STORAGE)); if (s) cfg = s; } catch(e) {}
+  document.getElementById('salaryInput').value = cfg.salary;
+  document.getElementById('startHour').value = cfg.startH;
+  document.getElementById('startMin').value = cfg.startM;
+  document.getElementById('endHour').value = cfg.endH;
+  document.getElementById('endMin').value = cfg.endM;
+}
+
+function saveCfg() {
+  cfg.salary = Math.max(0, parseInt(document.getElementById('salaryInput').value) || 0);
+  cfg.startH = Math.max(0, Math.min(23, parseInt(document.getElementById('startHour').value) || 9));
+  cfg.startM = Math.max(0, Math.min(59, parseInt(document.getElementById('startMin').value) || 0));
+  cfg.endH = Math.max(0, Math.min(23, parseInt(document.getElementById('endHour').value) || 18));
+  cfg.endM = Math.max(0, Math.min(59, parseInt(document.getElementById('endMin').value) || 0));
+  localStorage.setItem(STORAGE, JSON.stringify(cfg));
+}
+
+function toggleSettings() { document.getElementById('settingsOverlay').classList.toggle('show'); }
+function saveAndClose() { saveCfg(); toggleSettings(); updateAll(); }
+
+// ---- Calc ----
+function workDaysInMonth() {
+  const n = new Date(), y = n.getFullYear(), m = n.getMonth();
+  let c = 0;
+  for (let d = 1; d <= new Date(y, m + 1, 0).getDate(); d++) {
+    const w = new Date(y, m, d).getDay();
+    if (w >= 1 && w <= 5) c++;
+  }
+  return c;
+}
+
+function workMinPerDay() {
+  const s = cfg.startH * 60 + cfg.startM;
+  let e = cfg.endH * 60 + cfg.endM;
+  if (e <= s) e += 1440;
+  return e - s;
+}
+
+function compute() {
+  const now = new Date();
+  const wd = workDaysInMonth();
+  const wm = workMinPerDay();
+  const daily = cfg.salary / wd;
+  const minRate = daily / wm;
+  const hourRate = daily / (wm / 60);
+
+  // Today
+  const sod = new Date(now); sod.setHours(cfg.startH, cfg.startM, 0, 0);
+  let eod = new Date(now); eod.setHours(cfg.endH, cfg.endM, 0, 0);
+  if (eod <= sod) eod.setDate(eod.getDate() + 1);
+  let worked = 0;
+  if (now >= sod && now <= eod) worked = (now - sod) / 60000;
+  else if (now > eod) worked = wm;
+  const todayEarned = Math.max(0, worked * minRate);
+
+  // Month
+  const y = now.getFullYear(), m = now.getMonth();
+  let daysWorked = 0;
+  for (let d = 1; d <= now.getDate(); d++) {
+    const w = new Date(y, m, d).getDay();
+    if (w >= 1 && w <= 5 && new Date(y, m, d) <= now) daysWorked++;
+  }
+  const todayFrac = Math.min(1, worked / wm);
+  const monthEarned = (daysWorked - 1 + todayFrac) * daily;
+
+  // Time left
+  let left = 0;
+  if (now < sod) left = (sod - now) / 1000;
+  else if (now < eod) left = (eod - now) / 1000;
+
+  // Progress
+  const pct = Math.min(100, Math.max(0, (worked / wm) * 100));
+
+  // Fill (SVG body ~y=65 to y=175, max ~90px)
+  const fillPx = Math.min(90, todayFrac * 90);
+
+  return { todayEarned, minRate, hourRate, monthEarned, left, pct, fillPx, worked, wm, sod, eod };
+}
+
+// ---- Render ----
+function updateAll() {
+  const d = compute();
+
+  document.getElementById('todayAmount').innerHTML =
+    '¥' + d.todayEarned.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  document.getElementById('hourRate').textContent = '¥' + Math.round(d.hourRate);
+  document.getElementById('minRate').textContent = '¥' + d.minRate.toFixed(3);
+  document.getElementById('monthTotal').textContent = '¥' + Math.round(d.monthEarned).toLocaleString();
+  document.getElementById('perMinDisplay').textContent = d.minRate.toFixed(3);
+
+  if (d.left <= 0) {
+    document.getElementById('timeLeft').textContent = '已下班 🎉';
+    document.getElementById('progressText').innerHTML = '金币装满了，下班！';
+  } else {
+    const h = Math.floor(d.left / 3600);
+    const min = Math.floor((d.left % 3600) / 60);
+    const s = Math.floor(d.left % 60);
+    document.getElementById('timeLeft').textContent =
+      String(h).padStart(2,'0')+':'+String(min).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    document.getElementById('progressText').innerHTML = '距离下班还有 <span>'+h+'小时'+min+'分钟</span>';
+  }
+
+  document.getElementById('progressBar').style.width = d.pct + '%';
+  document.getElementById('pigFill').style.height = d.fillPx + 'px';
+
+  // SVG fill: move coin rect y up as it fills
+  const coinRect = document.getElementById('pigFillSvg');
+  if (coinRect) {
+    const y = 175 - d.fillPx;
+    coinRect.setAttribute('y', y);
+  }
+}
+
+// ---- Coin drop ----
+function dropCoin() {
+  const c = document.getElementById('piggyContainer');
+  const coin = document.createElement('div');
+  coin.className = 'coin-drop';
+  coin.style.left = (106 + (Math.random() - 0.5) * 16) + 'px';
+  coin.style.top = '50px';
+  coin.style.animationDuration = (1.2 + Math.random() * 0.5) + 's';
+  c.appendChild(coin);
+  coin.addEventListener('animationend', () => coin.remove());
+}
+
+// ---- Timers ----
+let updateTimer, coinTimer;
+
+function startTimers() {
+  if (updateTimer) clearInterval(updateTimer);
+  if (coinTimer) clearInterval(coinTimer);
+  updateTimer = setInterval(updateAll, 1000);
+  coinTimer = setInterval(() => {
+    const n = new Date();
+    const dow = n.getDay();
+    if (dow === 0 || dow === 6) return;
+    const sm = cfg.startH * 60 + cfg.startM;
+    let em = cfg.endH * 60 + cfg.endM;
+    if (em <= sm) em += 1440;
+    const nm = n.getHours() * 60 + n.getMinutes();
+    if (nm >= sm && nm < em) dropCoin();
+  }, 60000);
+}
+
+// ---- Init ----
+loadCfg();
+updateAll();
+startTimers();
+
+// Drop first coin if during work
+(function(){
+  const n = new Date();
+  const dow = n.getDay();
+  if (dow === 0 || dow === 6) return;
+  const sm = cfg.startH * 60 + cfg.startM;
+  let em = cfg.endH * 60 + cfg.endM;
+  if (em <= sm) em += 1440;
+  const nm = n.getHours() * 60 + n.getMinutes();
+  if (nm >= sm && nm < em) dropCoin();
+})();
+</script>
+</body>
+</html>
